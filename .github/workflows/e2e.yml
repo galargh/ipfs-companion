@@ -1,0 +1,51 @@
+name: e2e
+on:
+  workflow_dispatch:
+    inputs:
+      firefox-version:
+        description: The version of selenium/standalone-firefox image to use
+        default: latest
+        required: true
+      chromium-version:
+        description: The version of selenium/standalone-chrome image to use
+        default: latest
+        required: true
+      kubo-version:
+        description: The version of ipfs/kubo image to use
+        default: latest
+        required: true
+      ipfs-companion-version:
+        description: The version of ipfs-companion extension to use (defaults to building the extension from source)
+        default: ''
+        required: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+      - name: Set up node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+        env:
+          FIREFOX_VERSION: ${{ inputs.firefox-version }}
+          CHROMIUM_VERSION: ${{ inputs.chromium-version }}
+          KUBO_VERSION: ${{ inputs.kubo-version }}
+          IPFS_COMPANION_VERSION: ${{ inputs.ipfs-companion-version }}
+      - name: Download ipfs-companion
+        if: inputs.ipfs-companion-version != ""
+        run: ./ci/download-release-artifacts.sh
+        env:
+          IPFS_COMPANION_VERSION: ${{ inputs.ipfs-companion-version }}
+      - name: Build ipfs-companion
+        if: inputs.download-ipfs-companion == ""
+        run: npm run releaseBuild
+      - name: Build E2E env
+        run: npm run compose:e2e:build
+      - name: Start E2E env
+        run: npm run compose:e2e:up
+      - name: Run E2E tests
+        run: npm run compose:e2e:test
+      - name: Stop E2E env
+        run: npm run compose:e2e:stop
